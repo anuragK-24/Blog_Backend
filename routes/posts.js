@@ -81,31 +81,49 @@ router.get("/:id",async(req,res) => {
     }
 })
 
-//get all post 
-
-router.get("/",async(req,res) => {    //in the website after '?' whatever will be there, it'll be query
-    const username = req.query.user;
-    const catName = req.query.cat;
-
+//search Post by post title
+router.get("/search/:query", async (req, res) => {
+    const searchQuery = req.params.query;
+    const limit = 4;
     try {
+        if (!searchQuery) {
+            return res.status(400).json({ message: "Search query is required" });
+        }
 
-        let posts ;  // here we are taking lest cz post can be changeable here 
-        if(username){
-            posts = await Post.find({username});
-        }
-        else if(catName){
-            posts = await Post.find({categories:{
-                $in:[catName]
-            }});
-        }
-        else{
-            posts =await Post.find();
-        }
+        const posts = await Post.find({ title: { $regex: searchQuery, $options: 'i' } }).limit(limit);
         res.status(200).json(posts);
     } catch (error) {
         res.status(500).json(error);
     }
-})
+});
+
+//get all post 
+
+router.get("/", async (req, res) => {
+    const username = req.query.user;
+    const catName = req.query.cat;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 3;
+    const skip = (page - 1) * limit;
+
+    try {
+        let posts;
+        if (username) {
+            posts = await Post.find({ username }).skip(skip).limit(limit);
+        } else if (catName) {
+            posts = await Post.find({ categories: { $in: [catName] } }).skip(skip).limit(limit);
+        } else {
+            posts = await Post.find().skip(skip).limit(limit);
+        }
+        const totalPosts = await Post.countDocuments();
+        const hasMore = skip + limit < totalPosts;
+
+        res.status(200).json({ posts, hasMore });
+    } catch (error) {
+        res.status(500).json(error);
+    }
+});
+
 
 module.exports = router;
 
