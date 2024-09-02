@@ -71,7 +71,6 @@ router.delete("/:id",async(req,res) => {
 //get post by id
 
 router.get("/:id",async(req,res) => {
-    console.log(req.params.id);
     try {
         const post = await Post.findById(req.params.id);
 
@@ -105,25 +104,35 @@ router.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 3;
     const skip = (page - 1) * limit;
-
+  
     try {
-        let posts;
-        if (username) {
-            posts = await Post.find({ username }).skip(skip).limit(limit);
-        } else if (catName) {
-            posts = await Post.find({ categories: { $in: [catName] } }).skip(skip).limit(limit);
-        } else {
-            posts = await Post.find().skip(skip).limit(limit);
-        }
-        const totalPosts = await Post.countDocuments();
-        const hasMore = skip + limit < totalPosts;
-
-        res.status(200).json({ posts, hasMore });
+      let posts;
+      if (username) {
+        posts = await Post.find({ username })
+          .sort({ createdAt: -1 }) // Sort by creation date in descending order
+          .skip(skip)
+          .limit(limit);
+      } else if (catName) {
+        posts = await Post.find({ categories: { $in: [catName] } })
+          .sort({ createdAt: -1 }) // Sort by creation date in descending order
+          .skip(skip)
+          .limit(limit);
+      } else {
+        posts = await Post.find()
+          .sort({ createdAt: -1 }) // Sort by creation date in descending order
+          .skip(skip)
+          .limit(limit);
+      }
+  
+      const totalPosts = await Post.countDocuments();
+      const hasMore = skip + limit < totalPosts;
+  
+      res.status(200).json({ posts, hasMore });
     } catch (error) {
-        res.status(500).json(error);
+      res.status(500).json(error);
     }
-});
-
+  });
+  
 
 module.exports = router;
 
