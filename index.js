@@ -13,7 +13,7 @@ dotenv.config();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000", // Replace with your frontend's URL
+    origin: "https://blogspark-anuragk24.vercel.app", // Replace with your frontend's URL
     credentials: true,
   })
 );
