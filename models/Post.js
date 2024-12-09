@@ -16,13 +16,8 @@ const PostSchema =new mongoose.Schema(
             required:false,
         },
         username: {
-            // type here it's string is because we have to put here links of the pic 
             type: String,   
             required:true,
-        },
-        categories:{
-            type: Array,
-            required: false,
         },
     },
     {timestamps : true }
