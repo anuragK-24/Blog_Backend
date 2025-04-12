@@ -15,9 +15,13 @@ app.use(
   cors({
     origin: "https://blogspark-anuragk24.vercel.app", // Replace with your frontend's URL
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// Handle preflight requests
+app.options("*", cors());
 // MongoDB connection
 const uri = process.env.MONGO_URL;
 mongoose
