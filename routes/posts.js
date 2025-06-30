@@ -117,7 +117,7 @@ router.get("/", async (req, res) => {
     }
 
     const posts = await postsQuery
-      .select("title photo username createdAt updatedAt") // Only select required fields
+      .select("title photo username createdAt") // Only select required fields
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
