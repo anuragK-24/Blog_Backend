@@ -1,21 +1,29 @@
 const router = require("express").Router();
-const User = require("../models/User");
 const Post = require("../models/Post");
-const bcrypt = require("bcrypt");
 
 //for creating new post
 
 //when we are creatin then it should have "post" method.
 //for fetching the data we can use get
 router.post("/", async (req, res) => {
-  const newPost = new Post(req.body);
+  const { title, desc, photo, username } = req.body;
+
+  if (!title || !desc || !username) {
+    return res
+      .status(400)
+      .json({ message: "Title, description, and username are required." });
+  }
+
+  const newPost = new Post({ title, desc, photo, username });
+
   try {
     const savedPost = await newPost.save();
     res.status(200).json(savedPost);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ message: "Failed to save post", error });
   }
 });
+
 // here status 500 means that something is wrong with the mongoDB
 
 //req is what we are sending to the server, and res what we are getting from the server
