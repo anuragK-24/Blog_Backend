@@ -33,22 +33,28 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (post.username === req.body.username) {
-      try {
-        const updatedPost = await Post.findByIdAndUpdate(
-          req.params.id,
-          {
-            $set: req.body,
-          },
-          { new: true }
-        );
-        res.status(200).json(updatedPost);
-      } catch (err) {
-        res.status(500).json(err);
-      }
-    } else {
-      res.status(401).json("you can update only your post....");
+    if (post.username !== req.body.username) {
+      return res.status(401).json("You can update only your post.");
     }
+
+    const { title, desc, photo, username } = req.body;
+
+    // Basic validation
+    if (!title || !desc || !username) {
+      return res
+        .status(400)
+        .json("Title, description, and username are required.");
+    }
+
+    const updatedPost = await Post.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { title, desc, photo, username },
+      },
+      { new: true }
+    );
+
+    res.status(200).json(updatedPost);
   } catch (error) {
     res.status(500).json(error);
   }
