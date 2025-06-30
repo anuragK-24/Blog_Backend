@@ -1,49 +1,69 @@
 const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+const validator = require("validator");
 
-//for register
-
-//when we are creatin then it should have "post" method.
-//for fetching the data we can use get
+// REGISTER
 router.post("/register", async (req, res) => {
   try {
+    const { username, email, password } = req.body;
+
+    // Basic validation
+    if (!username || !email || !password) {
+      return res.status(400).json("All fields are required.");
+    }
+
+    if (!validator.isEmail(email)) {
+      return res.status(400).json("Invalid email format.");
+    }
+
+    if (password.length < 6 || password.length > 64) {
+      return res.status(400).json("Password must be 6 to 64 characters long.");
+    }
+
+    // Hash password
     const salt = await bcrypt.genSalt(10);
-    const hashedPass = await bcrypt.hash(req.body.password, salt);
+    const hashedPass = await bcrypt.hash(password, salt);
 
     const newUser = new User({
-      username: req.body.username,
-      email: req.body.email,
+      username,
+      email,
       password: hashedPass,
     });
+
     await newUser.save();
-    // await is asynch operation
-    res.status(200).json(newUser);
-    //200 status meaning the user has been created = success
+    res.status(200).json({ message: "User registered successfully." });
   } catch (err) {
-    console.log("catch RAn");
-    console.log(err);
-    res.status(500).json(err);
+    console.error("Registration error:", err);
+    res.status(500).json("Server error during registration.");
   }
 });
-// here status 500 means that something is wrong with the mongoDB
 
-//req is what we are sending to the server, and res what we are getting from the server
-// while doing asynch operation use try and catch block
-
-// for login
+// LOGIN
 router.post("/login", async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.body.username });
-    !user && res.status(400).json("Wrong credentials!");
+    const { username, password } = req.body;
 
-    const validated = await bcrypt.compare(req.body.password, user.password);
-    !validated && res.status(400).json("Wrong credentials!");
+    // Basic validation
+    if (!username || !password) {
+      return res.status(400).json("Username and password are required.");
+    }
 
-    const { password, ...others } = user._doc;
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json("Wrong credentials!");
+    }
+
+    const validated = await bcrypt.compare(password, user.password);
+    if (!validated) {
+      return res.status(400).json("Wrong credentials!");
+    }
+
+    const { password: pass, ...others } = user._doc;
     res.status(200).json(others);
   } catch (err) {
-    res.status(500).json(err);
+    console.error("Login error:", err);
+    res.status(500).json("Server error during login.");
   }
 });
 
