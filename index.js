@@ -4,6 +4,10 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { OAuth2Client } = require("google-auth-library");
+const crypto = require("crypto"); // For random password generation
+const User = require("./models/User"); // Adjust the path as neededconst bcrypt = require("bcrypt");
+const bcrypt = require("bcrypt");
+
 
 // Initialize the express app
 const app = express();
@@ -48,6 +52,10 @@ app.use("/api/users", userRoute);
 app.use("/api/posts", postRoute);
 
 // Google Login Route
+const bcrypt = require("bcrypt");
+const crypto = require("crypto"); // For random password generation
+const User = require("../models/User"); // Adjust the path as needed
+
 app.post("/api/auth/google-login", async (req, res) => {
   const { token } = req.body;
 
@@ -60,8 +68,32 @@ app.post("/api/auth/google-login", async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name } = payload;
 
-    // Dynamically use the Google user data
-    res.status(200).json({ user: { googleId, email, username: name } });
+    // Check if user already exists
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Generate a random password
+      const randomPassword = crypto.randomBytes(8).toString("hex");
+      const salt = await bcrypt.genSalt(10);
+      const hashedPass = await bcrypt.hash(randomPassword, salt);
+
+      // Create and save new user
+      user = new User({
+        username: name,
+        email,
+        password: hashedPass,
+      });
+
+      await user.save();
+    }
+
+    res.status(200).json({
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+      },
+    });
   } catch (error) {
     console.error("Error in Google Login:", error);
     res.status(401).json({ error: "Google token invalid" });
