@@ -7,6 +7,8 @@ const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require("./models/User");
+// const verifyToken = require("./middleware/verifyToken");
+
 
 // Initialize the express app
 const app = express();
@@ -58,11 +60,9 @@ app.post("/api/auth/google-login", async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name } = payload;
 
-    // Check if user already exists
     let user = await User.findOne({ email });
 
     if (!user) {
-      // Generate a random password
       const randomPassword = crypto.randomBytes(8).toString("hex");
       const salt = await bcrypt.genSalt(10);
       const hashedPass = await bcrypt.hash(randomPassword, salt);
@@ -76,12 +76,15 @@ app.post("/api/auth/google-login", async (req, res) => {
       await user.save();
     }
 
+    const jwtToken = generateToken(user);
+
     res.status(200).json({
       user: {
         _id: user._id,
         username: user.username,
         email: user.email,
       },
+      token: jwtToken,
     });
   } catch (error) {
     console.error("Error in Google Login:", error);

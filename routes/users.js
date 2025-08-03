@@ -2,6 +2,7 @@ const router = require("express").Router();
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const validator = require("validator");
+const Post = require("../models/Post");
 
 router.get("/:id/stats", async (req, res) => {
   try {
@@ -23,9 +24,10 @@ router.put("/:id", async (req, res) => {
   if (req.body.userId !== req.params.id) {
     return res.status(401).json("You can update only your account");
   }
+
   try {
     const updates = {};
-    const { username, email, password } = req.body;
+    const { username, email, techSkills, photo, about } = req.body;
 
     if (username) {
       if (typeof username !== "string" || username.trim().length < 3) {
@@ -33,24 +35,26 @@ router.put("/:id", async (req, res) => {
           .status(400)
           .json("Username must be at least 3 characters long.");
       }
-      updates.username = username;
+      updates.username = username.trim();
     }
 
     if (email) {
       if (!validator.isEmail(email)) {
         return res.status(400).json("Invalid email format.");
       }
-      updates.email = email;
+      updates.email = email.toLowerCase();
     }
 
-    if (password) {
-      if (password.length < 6 || password.length > 64) {
-        return res
-          .status(400)
-          .json("Password must be 6 to 64 characters long.");
-      }
-      const salt = await bcrypt.genSalt(10);
-      updates.password = await bcrypt.hash(password, salt);
+    if (techSkills !== undefined) {
+      updates.techSkills = techSkills;
+    }
+
+    if (photo !== undefined) {
+      updates.photo = photo;
+    }
+
+    if (about !== undefined) {
+      updates.about = about;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -65,6 +69,7 @@ router.put("/:id", async (req, res) => {
     res.status(500).json("Server error while updating user");
   }
 });
+
 // here status 500 means that something is wrong with the mongoDB
 
 //req is what we are sending to the server, and res what we are getting from the server
