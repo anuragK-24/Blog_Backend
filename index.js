@@ -58,7 +58,7 @@ app.post("/api/auth/google-login", async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    const { sub: googleId, email, name } = payload;
+    const { sub: googleId, email, name, picture } = payload;
 
     let user = await User.findOne({ email });
 
@@ -71,26 +71,26 @@ app.post("/api/auth/google-login", async (req, res) => {
         username: name,
         email,
         password: hashedPass,
+        photo: picture, // ⬅️ Store Google profile photo
       });
 
       await user.save();
     }
-
-    const jwtToken = generateToken(user);
 
     res.status(200).json({
       user: {
         _id: user._id,
         username: user.username,
         email: user.email,
+        photo: user.photo,
       },
-      token: jwtToken,
     });
   } catch (error) {
     console.error("Error in Google Login:", error);
     res.status(401).json({ error: "Google token invalid" });
   }
 });
+
 
 // Start the server
 app.listen(5000, () => {
