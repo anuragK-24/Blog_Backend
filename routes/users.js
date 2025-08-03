@@ -3,11 +3,26 @@ const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const validator = require("validator");
 
+router.get("/:id/stats", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json("User not found");
+
+    const posts = await Post.find({ username: user.username }).select(
+      "title createdAt views"
+    );
+
+    res.status(200).json(posts);
+  } catch (err) {
+    console.error("Failed to fetch user's blogs:", err);
+    res.status(500).json("Server error while fetching blogs");
+  }
+});
+
 router.put("/:id", async (req, res) => {
   if (req.body.userId !== req.params.id) {
     return res.status(401).json("You can update only your account");
   }
-
   try {
     const updates = {};
     const { username, email, password } = req.body;

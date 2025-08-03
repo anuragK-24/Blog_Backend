@@ -79,11 +79,20 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-//get post by id
 
+
+//get post by id
 router.get("/:id", async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { views: 1 } },
+      { new: true }
+    );
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
     res.status(200).json(post);
   } catch (error) {
@@ -134,7 +143,7 @@ router.get("/", async (req, res) => {
     }
 
     const posts = await postsQuery
-      .select("title photo username createdAt") // Only select required fields
+      .select("title photo username createdAt views")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -147,9 +156,5 @@ router.get("/", async (req, res) => {
     res.status(500).json(error);
   }
 });
-
-module.exports = router;
-
-//for Deleting user
 
 module.exports = router;

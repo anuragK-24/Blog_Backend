@@ -15,7 +15,7 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 20000, 
+      maxlength: 20000,
       set: (val) =>
         sanitizeHtml(val, {
           allowedTags: sanitizeHtml.defaults.allowedTags.concat([
@@ -43,6 +43,11 @@ const PostSchema = new mongoose.Schema(
       lowercase: true,
       maxlength: 30,
       set: (val) => sanitizeHtml(val),
+    },
+    views: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   { timestamps: true }
