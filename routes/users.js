@@ -31,9 +31,7 @@ router.put("/:id", async (req, res) => {
 
     if (username) {
       if (typeof username !== "string" || username.trim().length < 3) {
-        return res
-          .status(400)
-          .json("Username must be at least 3 characters long.");
+        return res.status(400).json("Username must be at least 3 characters long.");
       }
       updates.username = username.trim();
     }
@@ -46,6 +44,9 @@ router.put("/:id", async (req, res) => {
     }
 
     if (techSkills !== undefined) {
+      if (!Array.isArray(techSkills)) {
+        return res.status(400).json("Tech skills must be an array.");
+      }
       updates.techSkills = techSkills;
     }
 
@@ -69,6 +70,7 @@ router.put("/:id", async (req, res) => {
     res.status(500).json("Server error while updating user");
   }
 });
+
 
 // here status 500 means that something is wrong with the mongoDB
 

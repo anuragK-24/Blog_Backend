@@ -10,15 +10,15 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       maxlength: 100,
-      set: (val) => sanitizeHtml(val),
+      set: (val) => sanitizeHtml(val.trim().toLowerCase()),
     },
     username: {
       type: String,
       required: true,
       trim: true,
-      maxlength: 50,
       lowercase: true,
-      set: (val) => sanitizeHtml(val),
+      maxlength: 50,
+      set: (val) => sanitizeHtml(val.trim().toLowerCase()),
     },
     password: {
       type: String,
@@ -36,10 +36,14 @@ const UserSchema = new mongoose.Schema(
             .split(",")
             .map((skill) => sanitizeHtml(skill.trim()))
             .filter(Boolean);
+        } else if (Array.isArray(skills)) {
+          return skills
+            .map((skill) =>
+              typeof skill === "string" ? sanitizeHtml(skill.trim()) : ""
+            )
+            .filter(Boolean);
         }
-        return Array.isArray(skills)
-          ? skills.map((skill) => sanitizeHtml(skill))
-          : [];
+        return [];
       },
     },
     gender: {
@@ -50,13 +54,13 @@ const UserSchema = new mongoose.Schema(
     photo: {
       type: String,
       default: "",
-      set: (val) => sanitizeHtml(val),
+      set: (val) => (val ? sanitizeHtml(val.trim()) : ""),
     },
     about: {
       type: String,
       default: "",
       maxlength: 1000,
-      set: (val) => sanitizeHtml(val),
+      set: (val) => sanitizeHtml(val.trim()),
     },
   },
   { timestamps: true }
