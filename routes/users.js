@@ -1,33 +1,28 @@
 const router = require("express").Router();
-const bcrypt = require("bcrypt");
-const User = require("../models/User");
 const validator = require("validator");
+const User = require("../models/User");
 const Post = require("../models/Post");
 
+// Get a user's post stats
 router.get("/:id/stats", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json("User not found");
-
-    const posts = await Post.find({ username: user.username }).select(
-      "title createdAt views"
-    );
-
+    const posts = await Post.find({ userId: req.params.id }).select("title createdAt views");
     res.status(200).json(posts);
   } catch (err) {
-    console.error("Failed to fetch user's blogs:", err);
-    res.status(500).json("Server error while fetching blogs");
+    console.error("Failed to fetch user's posts:", err);
+    res.status(500).json("Server error while fetching posts");
   }
 });
 
+// Update user profile
 router.put("/:id", async (req, res) => {
   if (req.body.userId !== req.params.id) {
-    return res.status(401).json("You can update only your account");
+    return res.status(401).json("You can update only your account.");
   }
 
   try {
     const updates = {};
-    const { username, email, techSkills, photo, about } = req.body;
+    const { username, email, techSkills, photo, about, github, linkedin, website, twitter, instagram, youtube } = req.body;
 
     if (username) {
       if (typeof username !== "string" || username.trim().length < 3) {
@@ -50,20 +45,19 @@ router.put("/:id", async (req, res) => {
       updates.techSkills = techSkills;
     }
 
-    if (photo !== undefined) {
-      updates.photo = photo;
+    if (photo !== undefined) updates.photo = photo;
+    if (about !== undefined) updates.about = about;
+
+    // Validate social links
+    const links = { github, linkedin, website, twitter, instagram, youtube };
+    for (const [key, value] of Object.entries(links)) {
+      if (value && !validator.isURL(value, { protocols: ["http", "https"], require_protocol: true })) {
+        return res.status(400).json(`Invalid URL format for ${key}`);
+      }
+      if (value) updates[key] = value;
     }
 
-    if (about !== undefined) {
-      updates.about = about;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: updates },
-      { new: true }
-    );
-
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
     res.status(200).json(updatedUser);
   } catch (err) {
     console.error("User update failed:", err);
@@ -71,42 +65,33 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-
-// here status 500 means that something is wrong with the mongoDB
-
-//req is what we are sending to the server, and res what we are getting from the server
-// while doing asynch operation use try and catch block
-
-//for Deleting user
+// Delete user
 router.delete("/:id", async (req, res) => {
-  if (req.body.userId === req.params.id) {
-    try {
-      const user = await User.findById(req.params.id);
-      try {
-        await Post.deleteMany({ username: user.username });
-        await User.findByIdAndDelete(req.params.id);
-        res.status(200).json("User has been deleted ...");
-      } catch (err) {
-        res.status(500).json(err);
-      }
-    } catch (error) {
-      res.status(404).json("User not found ");
-    }
-  } else {
-    res.status(401).json("you can delete only your account  ");
+  if (req.body.userId !== req.params.id) {
+    return res.status(401).json("You can delete only your account.");
+  }
+
+  try {
+    await Post.deleteMany({ userId: req.params.id });
+    await User.findByIdAndDelete(req.params.id);
+    res.status(200).json("User and their posts have been deleted.");
+  } catch (error) {
+    console.error("Delete failed:", error);
+    res.status(500).json("Server error while deleting user");
   }
 });
 
-//get user
+// Get user profile
 router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json("User not found");
 
     const { password, ...others } = user._doc;
-
     res.status(200).json(others);
   } catch (error) {
-    res.status(500).json(err);
+    res.status(500).json("Server error");
   }
 });
+
 module.exports = router;

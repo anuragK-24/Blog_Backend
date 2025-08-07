@@ -20,7 +20,7 @@ const PostSchema = new mongoose.Schema(
         sanitizeHtml(val, {
           allowedTags: sanitizeHtml.defaults.allowedTags.concat([
             "img", "h1", "h2", "h3", "mark", "code", "pre",
-            "strong", "em", "b", "i", "u", "ul", "ol", "li", "a", "p", "br"
+            "strong", "em", "b", "i", "u", "ul", "ol", "li", "a", "p", "br",
           ]),
           allowedAttributes: {
             ...sanitizeHtml.defaults.allowedAttributes,
@@ -36,13 +36,10 @@ const PostSchema = new mongoose.Schema(
       maxlength: 1000,
       default: "",
     },
-    username: {
-      type: String,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      trim: true,
-      lowercase: true,
-      maxlength: 30,
-      set: (val) => sanitizeHtml(val),
     },
     views: {
       type: Number,

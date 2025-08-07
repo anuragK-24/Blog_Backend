@@ -1,20 +1,18 @@
 const router = require("express").Router();
 const Post = require("../models/Post");
+const User = require("../models/User");
 
-//for creating new post
-
-//when we are creatin then it should have "post" method.
-//for fetching the data we can use get
+// Create a new post
 router.post("/", async (req, res) => {
-  const { title, desc, photo, username } = req.body;
+  const { title, desc, photo, userId } = req.body;
 
-  if (!title || !desc || !username) {
+  if (!title || !desc || !userId) {
     return res
       .status(400)
-      .json({ message: "Title, description, and username are required." });
+      .json({ message: "Title, description, and userId are required." });
   }
 
-  const newPost = new Post({ title, desc, photo, username });
+  const newPost = new Post({ title, desc, photo, userId });
 
   try {
     const savedPost = await newPost.save();
@@ -24,33 +22,23 @@ router.post("/", async (req, res) => {
   }
 });
 
-// here status 500 means that something is wrong with the mongoDB
-
-//req is what we are sending to the server, and res what we are getting from the server
-// while doing asynch operation use try and catch block
-
-//for Update new post
+// Update a post
 router.put("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (post.username !== req.body.username) {
+    if (!post || post.userId.toString() !== req.body.userId) {
       return res.status(401).json("You can update only your post.");
     }
 
-    const { title, desc, photo, username } = req.body;
+    const { title, desc, photo } = req.body;
 
-    // Basic validation
-    if (!title || !desc || !username) {
-      return res
-        .status(400)
-        .json("Title, description, and username are required.");
+    if (!title || !desc) {
+      return res.status(400).json("Title and description are required.");
     }
 
     const updatedPost = await Post.findByIdAndUpdate(
       req.params.id,
-      {
-        $set: { title, desc, photo, username },
-      },
+      { $set: { title, desc, photo } },
       { new: true }
     );
 
@@ -60,47 +48,56 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-//for delete  post
+// Delete a post
 router.delete("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (post.username === req.body.username) {
-      try {
-        await post.delete();
-        res.status(200).json("Post has been deleted");
-      } catch (err) {
-        res.status(500).json(err);
-      }
-    } else {
-      res.status(401).json("you can only delete your post....");
+    if (!post || post.userId.toString() !== req.body.userId) {
+      return res.status(401).json("You can delete only your post.");
     }
+
+    await post.delete();
+    res.status(200).json("Post has been deleted");
   } catch (error) {
     res.status(500).json(error);
   }
 });
 
-
-
-//get post by id
+// Get a post by ID (increment views if viewer isn't the author)
 router.get("/:id", async (req, res) => {
   try {
-    const post = await Post.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { views: 1 } },
-      { new: true }
+    const { userId: viewerId } = req.query;
+
+    const post = await Post.findById(req.params.id).populate(
+      "userId",
+      "username email photo github linkedin website twitter instagram youtube"
     );
 
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    res.status(200).json(post);
+    const authorId = String(post.userId?._id);
+
+    // Increment views if viewer is not the author or not logged in
+    if (viewerId === undefined || viewerId !== authorId) {
+      post.views = (post.views || 0) + 1;
+      await post.save();
+    }
+
+    const postWithAuthor = {
+      ...post._doc,
+      author: post.userId || { username: "Unknown" },
+    };
+
+    res.status(200).json(postWithAuthor);
   } catch (error) {
-    res.status(500).json(error);
+    console.error("Error in GET /:id", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
-//search Post by post title
+// Search posts by title
 router.get("/search/:query", async (req, res) => {
   const searchQuery = req.params.query;
   const limit = 4;
@@ -113,7 +110,7 @@ router.get("/search/:query", async (req, res) => {
     const posts = await Post.find({
       title: { $regex: searchQuery, $options: "i" },
     })
-      .select("title") // only title is needed; _id is included by default
+      .select("title")
       .limit(limit);
 
     res.status(200).json(posts);
@@ -122,36 +119,39 @@ router.get("/search/:query", async (req, res) => {
   }
 });
 
-//get all post
-
+// Get all posts with optional filters and pagination
 router.get("/", async (req, res) => {
-  const username = req.query.user;
+  const userId = req.query.userId;
   const catName = req.query.cat;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 3;
   const skip = (page - 1) * limit;
 
   try {
-    let postsQuery;
-
-    if (username) {
-      postsQuery = Post.find({ username });
-    } else if (catName) {
-      postsQuery = Post.find({ categories: { $in: [catName] } });
-    } else {
-      postsQuery = Post.find();
+    let query = {};
+    if (userId) {
+      query.userId = userId;
+    }
+    if (catName) {
+      query.categories = { $in: [catName] };
     }
 
-    const posts = await postsQuery
-      .select("title photo username createdAt views")
+    const posts = await Post.find(query)
+      .select("title photo userId createdAt views")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .populate("userId", "username email photo socialLinks");
 
-    const totalPosts = await Post.countDocuments();
+    const formattedPosts = posts.map((post) => ({
+      ...post._doc,
+      author: post.userId || { username: "Unknown" },
+    }));
+
+    const totalPosts = await Post.countDocuments(query);
     const hasMore = skip + limit < totalPosts;
 
-    res.status(200).json({ posts, hasMore });
+    res.status(200).json({ posts: formattedPosts, hasMore });
   } catch (error) {
     res.status(500).json(error);
   }
