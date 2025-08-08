@@ -2,6 +2,7 @@ const router = require("express").Router();
 const validator = require("validator");
 const User = require("../models/User");
 const Post = require("../models/Post");
+const verifyToken = require("../middleware/verifyToken");
 
 // Get a user's post stats
 router.get("/:id/stats", async (req, res) => {
@@ -14,10 +15,10 @@ router.get("/:id/stats", async (req, res) => {
   }
 });
 
-// Update user profile
-router.put("/:id", async (req, res) => {
-  if (req.body.userId !== req.params.id) {
-    return res.status(401).json("You can update only your account.");
+// Update user profile (must be logged in and match token ID)
+router.put("/:id", verifyToken, async (req, res) => {
+  if (req.user.id !== req.params.id) {
+    return res.status(403).json("You can update only your account.");
   }
 
   try {
@@ -65,10 +66,10 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// Delete user
-router.delete("/:id", async (req, res) => {
-  if (req.body.userId !== req.params.id) {
-    return res.status(401).json("You can delete only your account.");
+// Delete user (must be logged in and match token ID)
+router.delete("/:id", verifyToken, async (req, res) => {
+  if (req.user.id !== req.params.id) {
+    return res.status(403).json("You can delete only your account.");
   }
 
   try {
@@ -81,7 +82,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// Get user profile
+// Get user profile (public)
 router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);

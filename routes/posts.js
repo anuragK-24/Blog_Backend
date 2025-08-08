@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const verifyToken = require("../middleware/verifyToken");
 const Post = require("../models/Post");
 const User = require("../models/User");
 
@@ -8,7 +9,7 @@ router.get("/top", async (req, res) => {
     const post = await Post.findOne()
       .sort({ views: -1 }) // Highest views   
       .limit(1)
-      .select("_id title photo createdAt userId") // Only required fields from Post
+      .select("_id title photo userId") // Only required fields from Post
       .populate("userId", "username"); // Only username from User
 
     if (!post) {
@@ -32,7 +33,7 @@ router.get("/top", async (req, res) => {
 
 
 // Create a new post
-router.post("/", async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   const { title, desc, photo, userId } = req.body;
 
   if (!title || !desc || !userId) {
@@ -52,7 +53,7 @@ router.post("/", async (req, res) => {
 });
 
 // Update a post
-router.put("/:id", async (req, res) => {
+router.put("/:id",verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post || post.userId.toString() !== req.body.userId) {
@@ -78,7 +79,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete a post
-router.delete("/:id", async (req, res) => {
+router.delete("/:id",verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post || post.userId.toString() !== req.body.userId) {

@@ -2,6 +2,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
@@ -47,43 +48,38 @@ app.use("/api/auth", authRoute);
 app.use("/api/users", userRoute);
 app.use("/api/posts", postRoute);
 
-// Google Login Route
+
+
 app.post("/api/auth/google-login", async (req, res) => {
   const { token } = req.body;
-
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const payload = ticket.getPayload();
-    const { sub: googleId, email, name, picture } = payload;
+    const { sub: googleId, email, name, picture } = ticket.getPayload();
 
     let user = await User.findOne({ email });
-
     if (!user) {
       const randomPassword = crypto.randomBytes(8).toString("hex");
       const salt = await bcrypt.genSalt(10);
       const hashedPass = await bcrypt.hash(randomPassword, salt);
 
-      user = new User({
-        username: name,
-        email,
-        password: hashedPass,
-        photo: picture, // ⬅️ Store Google profile photo
-      });
-
+      user = new User({ username: name, email, password: hashedPass, photo: picture });
       await user.save();
     }
 
+    // Create JWT
+    const accessToken = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
     res.status(200).json({
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        photo: user.photo,
-      },
+      user: { _id: user._id, username: user.username, email: user.email, photo: user.photo },
+      token: accessToken
     });
   } catch (error) {
     console.error("Error in Google Login:", error);
