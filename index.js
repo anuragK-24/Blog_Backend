@@ -66,7 +66,12 @@ app.post("/api/auth/google-login", async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPass = await bcrypt.hash(randomPassword, salt);
 
-      user = new User({ username: name, email, password: hashedPass, photo: picture });
+      user = new User({
+        username: name,
+        email,
+        password: hashedPass,
+        photo: picture,
+      });
       await user.save();
     }
 
@@ -77,15 +82,19 @@ app.post("/api/auth/google-login", async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
+    // Exclude password from user object
+    const { password, ...userWithoutPassword } = user._doc;
+
     res.status(200).json({
-      user: { _id: user._id, username: user.username, email: user.email, photo: user.photo },
-      token: accessToken
+      user: userWithoutPassword,
+      token: accessToken,
     });
   } catch (error) {
     console.error("Error in Google Login:", error);
     res.status(401).json({ error: "Google token invalid" });
   }
 });
+
 
 
 // Start the server
