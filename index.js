@@ -74,7 +74,7 @@ app.post("/api/auth/google-login", async (req, res) => {
     const accessToken = jwt.sign(
       { id: user._id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
     res.status(200).json({
