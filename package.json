@@ -17,6 +17,9 @@
     "sanitize-html": "^2.17.0",
     "validator": "^13.15.15"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "start": "nodemon index.js"
   },
