@@ -2,6 +2,35 @@ const router = require("express").Router();
 const Post = require("../models/Post");
 const User = require("../models/User");
 
+// Get the blog post with the maximum views
+router.get("/top", async (req, res) => {
+  try {
+    const post = await Post.findOne()
+      .sort({ views: -1 }) // Highest views   
+      .limit(1)
+      .select("_id title photo createdAt userId") // Only required fields from Post
+      .populate("userId", "username"); // Only username from User
+
+    if (!post) {
+      return res.status(404).json({ message: "No posts found" });
+    }
+
+    const postData = {
+      postId: post._id,
+      postName: post.title,
+      postPhoto: post.photo,
+      datePublished: post.createdAt,
+      authorName: post.userId?.username || "Unknown",
+    };
+
+    res.status(200).json(postData);
+  } catch (error) {
+    console.error("Error fetching most viewed post:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 // Create a new post
 router.post("/", async (req, res) => {
   const { title, desc, photo, userId } = req.body;
