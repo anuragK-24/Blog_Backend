@@ -42,13 +42,13 @@ router.post("/register", async (req, res) => {
 // LOGIN
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json("Username and password are required.");
+    if (!email || !password) {
+      return res.status(400).json("Email and password are required.");
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ email });
     if (!user) return res.status(400).json("Wrong credentials!");
 
     const validated = await bcrypt.compare(password, user.password);
@@ -61,5 +61,6 @@ router.post("/login", async (req, res) => {
     res.status(500).json("Server error during login.");
   }
 });
+
 
 module.exports = router;
