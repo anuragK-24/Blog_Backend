@@ -11,6 +11,6 @@ jobs:
     steps:
       - name: Call cleanup API
         run: |
-          curl -X DELETE https://your-app.com/api/posts/cleanup \
+          curl -X DELETE ${{ secrets.API_URL }}/api/posts/cleanup \
           -H "Authorization: Bearer ${{ secrets.CRON_JOB_TOKEN }}" \
           -H "X-User-Email: ${{ secrets.CRON_JOB_EMAIL }}"
