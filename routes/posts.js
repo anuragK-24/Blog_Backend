@@ -8,15 +8,13 @@ const User = require("../models/User");
 // Cleanup route: short desc + older than 1 day
 router.delete("/cleanup", verifyCronJob, async (req, res) => {
   try {
-
-    console.log("Hey all working fine ");
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     const result = await Post.deleteMany({
       $and: [
         { $expr: { $lte: [{ $strLenCP: "$desc" }, 150] } },
-        { createdAt: { $lte: oneDayAgo } }
+        // { createdAt: { $lte: oneDayAgo } }
       ]
     });
 
