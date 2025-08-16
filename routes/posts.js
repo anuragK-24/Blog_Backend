@@ -14,7 +14,7 @@ router.delete("/cleanup", verifyCronJob, async (req, res) => {
     const result = await Post.deleteMany({
       $and: [
         { $expr: { $lte: [{ $strLenCP: "$desc" }, 150] } },
-        // { createdAt: { $lte: oneDayAgo } }
+        { createdAt: { $lte: oneDayAgo } }
       ]
     });
 
