@@ -1,0 +1,16 @@
+name: Blog Cleanup
+
+on:
+  schedule:
+    - cron: "*/1 * * * *" # runs every 1 minute
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call cleanup API
+        run: |
+          curl -X DELETE https://your-app.com/api/posts/cleanup \
+          -H "Authorization: Bearer ${{ secrets.CRON_JOB_TOKEN }}" \
+          -H "X-User-Email: ${{ secrets.CRON_JOB_EMAIL }}"

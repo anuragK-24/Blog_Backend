@@ -1,7 +1,36 @@
 const router = require("express").Router();
 const verifyToken = require("../middleware/verifyToken");
+const verifyCronJob = require("../middleware/verifyCronJob");
 const Post = require("../models/Post");
 const User = require("../models/User");
+
+
+// Cleanup route: short desc + older than 1 day
+router.delete("/cleanup", verifyCronJob, async (req, res) => {
+  try {
+
+    console.log("Hey all working fine ");
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const result = await Post.deleteMany({
+      $and: [
+        { $expr: { $lte: [{ $strLenCP: "$desc" }, 150] } },
+        { createdAt: { $lte: oneDayAgo } }
+      ]
+    });
+
+    res.status(200).json({
+      message: `Cleanup complete. ${result.deletedCount} post(s) removed.`,
+    });
+  } catch (error) {
+    console.error("Error during cleanup:", error);
+    res.status(500).json({ message: "Internal server error during cleanup" });
+  }
+});
+
+
+
 
 // Get the blog post with the maximum views
 router.get("/top", async (req, res) => {
