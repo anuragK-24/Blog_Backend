@@ -2,7 +2,8 @@ name: Blog Cleanup
 
 on:
   schedule:
-    - cron: "*/1 * * * *" # runs every 1 minute
+    - cron: "*/1 * * * *" # every minute
+  workflow_dispatch: # allows manual trigger
 
 jobs:
   cleanup:
@@ -11,6 +12,6 @@ jobs:
     steps:
       - name: Call cleanup API
         run: |
-          curl -X DELETE ${{ secrets.API_URL }}/api/posts/cleanup \
+          curl -X DELETE https://your-app.com/api/posts/cleanup \
           -H "Authorization: Bearer ${{ secrets.CRON_JOB_TOKEN }}" \
-          -H "X-User-Email: ${{ secrets.CRON_JOB_EMAIL }}"
+          -H "X-User-Email: ${{ secrets.USER_EMAIL }}"
