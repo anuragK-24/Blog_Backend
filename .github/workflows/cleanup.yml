@@ -2,7 +2,7 @@ name: Blog Cleanup
 
 on:
   schedule:
-    - cron: "0 4 * * *"
+    - cron: "30 22 * * *"  # Runs daily at 4:00 AM IST
 
 jobs:
   cleanup:
@@ -11,6 +11,6 @@ jobs:
     steps:
       - name: Call cleanup API
         run: |
-          curl -X DELETE ${{ secrets.API_URL }}/api/posts/cleanup \
+          curl -f -X DELETE ${{ secrets.API_URL }}/api/posts/cleanup \
           -H "Authorization: Bearer ${{ secrets.CRON_JOB_TOKEN }}" \
           -H "X-User-Email: ${{ secrets.USER_EMAIL }}"
