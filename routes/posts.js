@@ -114,7 +114,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     res.status(500).json(error);
   }
 });
-
+ 
 // Delete post
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
