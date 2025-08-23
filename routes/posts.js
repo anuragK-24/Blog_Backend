@@ -3,9 +3,49 @@ const verifyToken = require("../middleware/verifyToken");
 const verifyCronJob = require("../middleware/verifyCronJob");
 const Post = require("../models/Post");
 const User = require("../models/User");
+const redisClient = require("../config/redisClient"); // Redis client
 
+// Redis helpers
+const setCache = async (key, data, ttl = 60) => {
+  await redisClient.set(key, JSON.stringify(data), { EX: ttl });
+};
+const getCache = async (key) => {
+  const data = await redisClient.get(key);
+  return data ? JSON.parse(data) : null;
+};
 
-// Cleanup route: short desc + older than 1 day
+// GET top post (cached)
+router.get("/top", async (req, res) => {
+  const cacheKey = "topPost";
+
+  try {
+    const cachedPost = await getCache(cacheKey);
+    if (cachedPost) return res.status(200).json(cachedPost);
+
+    const post = await Post.findOne()
+      .sort({ views: -1 })
+      .limit(1)
+      .select("_id title photo userId")
+      .populate("userId", "username");
+
+    if (!post) return res.status(404).json({ message: "No posts found" });
+
+    const postData = {
+      postId: post._id,
+      postName: post.title,
+      postPhoto: post.photo,
+      datePublished: post.createdAt,
+      authorName: post.userId?.username || "Unknown",
+    };
+
+    await setCache(cacheKey, postData, 60);
+    res.status(200).json(postData);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Cleanup route
 router.delete("/cleanup", verifyCronJob, async (req, res) => {
   try {
     const oneDayAgo = new Date();
@@ -14,8 +54,8 @@ router.delete("/cleanup", verifyCronJob, async (req, res) => {
     const result = await Post.deleteMany({
       $and: [
         { $expr: { $lte: [{ $strLenCP: "$desc" }, 150] } },
-        { createdAt: { $lte: oneDayAgo } }
-      ]
+        { createdAt: { $lte: oneDayAgo } },
+      ],
     });
 
     res.status(200).json({
@@ -27,42 +67,9 @@ router.delete("/cleanup", verifyCronJob, async (req, res) => {
   }
 });
 
-
-
-
-// Get the blog post with the maximum views
-router.get("/top", async (req, res) => {
-  try {
-    const post = await Post.findOne()
-      .sort({ views: -1 }) // Highest views   
-      .limit(1)
-      .select("_id title photo userId") // Only required fields from Post
-      .populate("userId", "username"); // Only username from User
-
-    if (!post) {
-      return res.status(404).json({ message: "No posts found" });
-    }
-
-    const postData = {
-      postId: post._id,
-      postName: post.title,
-      postPhoto: post.photo,
-      datePublished: post.createdAt,
-      authorName: post.userId?.username || "Unknown",
-    };
-
-    res.status(200).json(postData);
-  } catch (error) {
-    console.error("Error fetching most viewed post:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-
-// Create a new post
+// Create post
 router.post("/", verifyToken, async (req, res) => {
   const { title, desc, photo, userId } = req.body;
-
   if (!title || !desc || !userId) {
     return res
       .status(400)
@@ -79,8 +86,8 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// Update a post
-router.put("/:id",verifyToken, async (req, res) => {
+// Update post
+router.put("/:id", verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post || post.userId.toString() !== req.body.userId) {
@@ -88,10 +95,8 @@ router.put("/:id",verifyToken, async (req, res) => {
     }
 
     const { title, desc, photo } = req.body;
-
-    if (!title || !desc) {
+    if (!title || !desc)
       return res.status(400).json("Title and description are required.");
-    }
 
     const updatedPost = await Post.findByIdAndUpdate(
       req.params.id,
@@ -99,14 +104,19 @@ router.put("/:id",verifyToken, async (req, res) => {
       { new: true }
     );
 
+    // Invalidate caches
+    await redisClient.del("topPost");
+    await redisClient.del(`post:${req.params.id}`);
+    await redisClient.delPattern("posts:*"); // optional for list caching
+
     res.status(200).json(updatedPost);
   } catch (error) {
     res.status(500).json(error);
   }
 });
 
-// Delete a post
-router.delete("/:id",verifyToken, async (req, res) => {
+// Delete post
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post || post.userId.toString() !== req.body.userId) {
@@ -114,29 +124,34 @@ router.delete("/:id",verifyToken, async (req, res) => {
     }
 
     await post.delete();
+
+    // Invalidate caches
+    await redisClient.del("topPost");
+    await redisClient.del(`post:${req.params.id}`);
+    await redisClient.delPattern("posts:*");
+
     res.status(200).json("Post has been deleted");
   } catch (error) {
     res.status(500).json(error);
   }
 });
 
-// Get a post by ID (increment views if viewer isn't the author)
+// Get single post (cached)
 router.get("/:id", async (req, res) => {
+  const postId = req.params.id;
+  const cacheKey = `post:${postId}`;
   try {
-    const { userId: viewerId } = req.query;
+    const cachedPost = await getCache(cacheKey);
+    if (cachedPost) return res.status(200).json(cachedPost);
 
-    const post = await Post.findById(req.params.id).populate(
+    const { userId: viewerId } = req.query;
+    const post = await Post.findById(postId).populate(
       "userId",
       "username email photo github linkedin website twitter instagram youtube"
     );
-
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
     const authorId = String(post.userId?._id);
-
-    // Increment views if viewer is not the author or not logged in
     if (viewerId === undefined || viewerId !== authorId) {
       post.views = (post.views || 0) + 1;
       await post.save();
@@ -147,6 +162,7 @@ router.get("/:id", async (req, res) => {
       author: post.userId || { username: "Unknown" },
     };
 
+    await setCache(cacheKey, postWithAuthor, 60);
     res.status(200).json(postWithAuthor);
   } catch (error) {
     console.error("Error in GET /:id", error);
@@ -154,15 +170,18 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Search posts by title
+// Search posts (cached)
 router.get("/search/:query", async (req, res) => {
   const searchQuery = req.params.query;
   const limit = 4;
+  const cacheKey = `search:${searchQuery}`;
 
   try {
-    if (!searchQuery) {
+    const cachedSearch = await getCache(cacheKey);
+    if (cachedSearch) return res.status(200).json(cachedSearch);
+
+    if (!searchQuery)
       return res.status(400).json({ message: "Search query is required" });
-    }
 
     const posts = await Post.find({
       title: { $regex: searchQuery, $options: "i" },
@@ -170,13 +189,14 @@ router.get("/search/:query", async (req, res) => {
       .select("title")
       .limit(limit);
 
+    await setCache(cacheKey, posts, 60);
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json(error);
   }
 });
 
-// Get all posts with optional filters and pagination
+// Get all posts (cached)
 router.get("/", async (req, res) => {
   const userId = req.query.userId;
   const catName = req.query.cat;
@@ -184,14 +204,17 @@ router.get("/", async (req, res) => {
   const limit = parseInt(req.query.limit) || 3;
   const skip = (page - 1) * limit;
 
+  const cacheKey = `posts:${userId || "all"}:${
+    catName || "all"
+  }:page:${page}:limit:${limit}`;
+
   try {
+    const cachedPosts = await getCache(cacheKey);
+    if (cachedPosts) return res.status(200).json(cachedPosts);
+
     let query = {};
-    if (userId) {
-      query.userId = userId;
-    }
-    if (catName) {
-      query.categories = { $in: [catName] };
-    }
+    if (userId) query.userId = userId;
+    if (catName) query.categories = { $in: [catName] };
 
     const posts = await Post.find(query)
       .select("title photo userId createdAt views")
@@ -204,11 +227,13 @@ router.get("/", async (req, res) => {
       ...post._doc,
       author: post.userId || { username: "Unknown" },
     }));
-
     const totalPosts = await Post.countDocuments(query);
     const hasMore = skip + limit < totalPosts;
 
-    res.status(200).json({ posts: formattedPosts, hasMore });
+    const response = { posts: formattedPosts, hasMore };
+    await setCache(cacheKey, response, 60);
+
+    res.status(200).json(response);
   } catch (error) {
     res.status(500).json(error);
   }
