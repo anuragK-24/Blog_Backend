@@ -28,10 +28,12 @@ app.use(
 // Handle preflight requests
 app.options("*", cors());
 
-// Database connection
-const connectDB = require("./config/database");
-connectDB();
-
+// MongoDB connection
+mongoose
+  .connect(process.env.MONGO_URL, { useNewUrlParser: true })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.log(err));
+  
 // Google OAuth2 client setup
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
