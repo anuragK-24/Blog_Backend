@@ -8,26 +8,32 @@ const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require("./models/User");
+// const verifyToken = require("./middleware/verifyToken");
+
+
+// Initialize the express app
 const app = express();
 dotenv.config();
+
+// Middleware setup
 app.use(express.json());
+app.use(
+  cors({
+    origin: "https://blogspark-anuragk24.vercel.app/",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-
-
-
-
+// Handle preflight requests
+app.options("*", cors());
 
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URL, { useNewUrlParser: true })
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.log(err));
-
-  // Allow your frontend origin
-  app.use(cors({
-    origin: "https://blogspark-anuragk24.vercel.app", 
-    credentials: true
-  }));
 
 // Google OAuth2 client setup
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -41,6 +47,8 @@ const postRoute = require("./routes/posts");
 app.use("/api/auth", authRoute);
 app.use("/api/users", userRoute);
 app.use("/api/posts", postRoute);
+
+
 
 app.post("/api/auth/google-login", async (req, res) => {
   const { token } = req.body;
@@ -86,6 +94,8 @@ app.post("/api/auth/google-login", async (req, res) => {
     res.status(401).json({ error: "Google token invalid" });
   }
 });
+
+
 
 // Start the server
 app.listen(5000, () => {
