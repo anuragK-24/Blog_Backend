@@ -8,7 +8,6 @@ const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require("./models/User");
-// const verifyToken = require("./middleware/verifyToken");
 
 // Initialize the express app
 const app = express();
@@ -26,7 +25,11 @@ app.use(
 );
 
 // Handle preflight requests
-app.options("*", cors());
+app.options("*", cors({
+  origin: "https://blogspark-anuragk24.vercel.app",
+  credentials: true,
+}));
+
 
 // MongoDB connection
 mongoose
