@@ -1,4 +1,3 @@
-// Import required modules
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
@@ -8,14 +7,10 @@ const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require("./models/User");
-// const verifyToken = require("./middleware/verifyToken");
-
-
-// Initialize the express app
+const rateLimit = require("express-rate-limit"); // ✅ added
 const app = express();
 dotenv.config();
 
-// Middleware setup
 app.use(express.json());
 app.use(
   cors({
@@ -26,8 +21,23 @@ app.use(
   })
 );
 
-// Handle preflight requests
 app.options("*", cors());
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 200, 
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+
+const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, 
+  max: 10, 
+  message: { error: "Too many login attempts, please try again later." },
+});
 
 // MongoDB connection
 mongoose
@@ -44,13 +54,11 @@ const userRoute = require("./routes/users");
 const postRoute = require("./routes/posts");
 
 // Use routes
-app.use("/api/auth", authRoute);
+app.use("/api/auth", authLimiter, authRoute);
 app.use("/api/users", userRoute);
 app.use("/api/posts", postRoute);
 
-
-
-app.post("/api/auth/google-login", async (req, res) => {
+app.post("/api/auth/google-login", authLimiter, async (req, res) => {
   const { token } = req.body;
   try {
     const ticket = await client.verifyIdToken({
@@ -94,8 +102,6 @@ app.post("/api/auth/google-login", async (req, res) => {
     res.status(401).json({ error: "Google token invalid" });
   }
 });
-
-
 
 // Start the server
 app.listen(5000, () => {
