@@ -104,17 +104,20 @@ router.put("/:id", verifyToken, async (req, res) => {
       { new: true }
     );
 
-    // Invalidate caches
-    await redisClient.del("topPost");
-    await redisClient.del(`post:${req.params.id}`);
-    await redisClient.delPattern("posts:*"); // optional for list caching
+    try {
+      await redisClient.del("topPost");
+      await redisClient.del(`post:${req.params.id}`);
+      await redisClient.delPattern("posts:*"); // optional for list caching
+    } catch (error) {
+      console.error("Redis cache clear error:", error.message);
+    }
 
     res.status(200).json(updatedPost);
   } catch (error) {
     res.status(500).json(error);
   }
 });
- 
+
 // Delete post
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
@@ -124,11 +127,13 @@ router.delete("/:id", verifyToken, async (req, res) => {
     }
 
     await post.delete();
-
-    // Invalidate caches
-    await redisClient.del("topPost");
-    await redisClient.del(`post:${req.params.id}`);
-    await redisClient.delPattern("posts:*");
+    try {
+      await redisClient.del("topPost");
+      await redisClient.del(`post:${req.params.id}`);
+      await redisClient.delPattern("posts:*"); // optional for list caching
+    } catch (error) {
+      console.error("Redis cache clear error:", error.message);
+    }
 
     res.status(200).json("Post has been deleted");
   } catch (error) {

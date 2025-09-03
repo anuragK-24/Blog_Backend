@@ -7,7 +7,7 @@ const { OAuth2Client } = require("google-auth-library");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require("./models/User");
-const rateLimit = require("express-rate-limit"); // ✅ added
+const rateLimit = require("express-rate-limit"); 
 const app = express();
 dotenv.config();
 
