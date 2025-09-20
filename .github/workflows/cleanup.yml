@@ -2,7 +2,8 @@ name: Blog Cleanup
 
 on:
   schedule:
-    - cron: "30 22 * * *"  # Runs daily at 4:00 AM IST
+    - cron: "30 22 * * *"
+    - cron: "30 10 * * *"
 
 jobs:
   cleanup:
